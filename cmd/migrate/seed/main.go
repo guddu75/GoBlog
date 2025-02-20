@@ -8,6 +8,7 @@ import (
 	"github.com/guddu75/goblog/internal/store"
 )
 
+// TODO : Create a seed down function to delete all the data from the tables
 func main() {
 	addr := env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable")
 
