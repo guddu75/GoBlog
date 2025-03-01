@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
+	"time"
 
 	"github.com/guddu75/goblog/internal/db"
 	"github.com/guddu75/goblog/internal/env"
 	"github.com/guddu75/goblog/internal/store"
+	"go.uber.org/zap"
 )
 
 const version = "0.0.1"
@@ -40,7 +41,17 @@ func main() {
 			maxIdleTime:  env.GetString("DB_MAX_IDLE_TIME", "15m"),
 		},
 		env: env.GetString("ENV", "development"),
+		mail: mailConfig{
+			exp: time.Hour * 24 * 3,
+		},
 	}
+
+	// Logger
+
+	logger := zap.Must(zap.NewProduction()).Sugar()
+	defer logger.Sync()
+
+	// Database
 
 	db, err := db.New(
 		cfg.db.addr,
@@ -50,21 +61,22 @@ func main() {
 	)
 
 	if err != nil {
-		log.Panic(err)
+		logger.Fatal(err)
 	}
 
 	defer db.Close()
 
-	log.Println("Database connection pool established")
+	logger.Info("Database connection pool established")
 
 	store := store.NewStorage(db)
 
 	app := &application{
 		config: cfg,
 		store:  store,
+		logger: logger,
 	}
 
 	mux := app.mount()
 
-	log.Fatal(app.run(mux))
+	logger.Fatal(app.run(mux))
 }
