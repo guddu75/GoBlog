@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/guddu75/goblog/docs"
+	"github.com/guddu75/goblog/internal/auth"
+	"github.com/guddu75/goblog/internal/mailer"
 	"github.com/guddu75/goblog/internal/store"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
@@ -17,18 +19,52 @@ type application struct {
 	config config
 	store  store.Storage
 	logger *zap.SugaredLogger
+	mailer mailer.Client
+	auth   auth.Authenticator
+}
+
+type authConfig struct {
+	basic basicAuthConfig
+	token tokenConfig
+}
+
+type tokenConfig struct {
+	secret string
+	exp    time.Duration
+	iss    string
+}
+
+type basicAuthConfig struct {
+	username string
+	password string
 }
 
 type config struct {
-	addr   string
-	db     dbConfig
-	env    string
-	apiURL string
-	mail   mailConfig
+	addr        string
+	db          dbConfig
+	env         string
+	apiURL      string
+	mail        mailConfig
+	frontendURL string
+	auth        authConfig
 }
 
 type mailConfig struct {
-	exp time.Duration
+	mailTrap  mailTrapConfig
+	sendGrid  sendGridConfig
+	fromEmail string
+	exp       time.Duration
+}
+
+type mailTrapConfig struct {
+	apiKey   string
+	userName string
+	host     string
+	port     int
+}
+
+type sendGridConfig struct {
+	apiKey string
 }
 
 type dbConfig struct {
@@ -52,7 +88,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Route("/v1", func(r chi.Router) {
-		r.Get("/health", app.healthCheckHandler)
+		r.With(app.BasicAuthMiddleware()).Get("/health", app.healthCheckHandler)
 
 		docsURL := fmt.Sprintf("%s/swagger/doc.json", app.config.addr)
 
@@ -61,6 +97,7 @@ func (app *application) mount() http.Handler {
 		))
 
 		r.Route("/posts", func(r chi.Router) {
+			r.Use(app.AuthTokenMiddleware)
 			r.Post("/", app.createPostHandler)
 
 			r.Route("/{postId}", func(r chi.Router) {
@@ -79,6 +116,7 @@ func (app *application) mount() http.Handler {
 			r.Put("/activate/{token}", app.activateUserHandler)
 
 			r.Route("/{userId}", func(r chi.Router) {
+				r.Use(app.AuthTokenMiddleware)
 				r.Use(app.userContextMiddleware)
 				r.Get("/", app.getUserHandler)
 				r.Put("/follow", app.followUserHandler)
@@ -86,14 +124,15 @@ func (app *application) mount() http.Handler {
 			})
 
 			r.Group(func(r chi.Router) {
+				r.Use(app.AuthTokenMiddleware)
 				r.Get("/feed", app.getUserFeedHandler)
 			})
 
 		})
 
 		r.Route("/authentication", func(r chi.Router) {
-			// fmt.Println("Inside authentication")
 			r.Post("/user", app.registerUserHandler)
+			r.Post("/token", app.createTokenHandler)
 		})
 
 	})

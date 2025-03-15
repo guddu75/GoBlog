@@ -3,8 +3,10 @@ package main
 import (
 	"time"
 
+	"github.com/guddu75/goblog/internal/auth"
 	"github.com/guddu75/goblog/internal/db"
 	"github.com/guddu75/goblog/internal/env"
+	"github.com/guddu75/goblog/internal/mailer"
 	"github.com/guddu75/goblog/internal/store"
 	"go.uber.org/zap"
 )
@@ -32,8 +34,9 @@ const version = "0.0.1"
 func main() {
 
 	cfg := config{
-		addr:   env.GetString("ADDR", ":8080"),
-		apiURL: env.GetString("EXTERNAL_URL", "localhost:8080"),
+		addr:        env.GetString("ADDR", ":8080"),
+		apiURL:      env.GetString("EXTERNAL_URL", "localhost:8080"),
+		frontendURL: env.GetString("FRONTEND_URL", "http://localhost:4000"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable"),
 			maxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 30),
@@ -42,7 +45,28 @@ func main() {
 		},
 		env: env.GetString("ENV", "development"),
 		mail: mailConfig{
-			exp: time.Hour * 24 * 3,
+			exp:       time.Hour * 24 * 3,
+			fromEmail: env.GetString("FROM_EMAIL", ""),
+			sendGrid: sendGridConfig{
+				apiKey: env.GetString("SENDGRID_API_KEY", ""),
+			},
+			mailTrap: mailTrapConfig{
+				apiKey:   env.GetString("MAILTRAP_API_KEY", ""),
+				userName: env.GetString("MAILTRAP_USERNAME", ""),
+				host:     env.GetString("MAILTRAP_HOST", ""),
+				port:     env.GetInt("MAILTRAP_PORT", 1),
+			},
+		},
+		auth: authConfig{
+			basic: basicAuthConfig{
+				username: env.GetString("BASIC_AUTH_USERNAME", "admin"),
+				password: env.GetString("BASIC_AUTH_PASSWORD", "admin"),
+			},
+			token: tokenConfig{
+				secret: env.GetString("AUTH_TOKEN_SECRET", "example"),
+				exp:    time.Hour * 24 * 7,
+				iss:    "GoBlog",
+			},
 		},
 	}
 
@@ -70,10 +94,21 @@ func main() {
 
 	store := store.NewStorage(db)
 
+	mailer, err := mailer.NewMailTrapClient(cfg.mail.mailTrap.host,
+		cfg.mail.mailTrap.userName, cfg.mail.mailTrap.apiKey, cfg.mail.fromEmail, cfg.mail.mailTrap.port)
+
+	if err != nil {
+		logger.Info("Error while creating mailer instance error -> ", err.Error())
+	}
+
+	jwtAuthenticator := auth.NewJWTAuthenticator(cfg.auth.token.secret, cfg.auth.token.iss, cfg.auth.token.iss)
+
 	app := &application{
 		config: cfg,
 		store:  store,
 		logger: logger,
+		mailer: &mailer,
+		auth:   jwtAuthenticator,
 	}
 
 	mux := app.mount()
