@@ -53,11 +53,19 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		ctx := r.Context()
-		user, err := app.store.Users.GetByID(ctx, userID)
+		// user, err := app.store.Users.GetByID(ctx, userID)
+		// if err != nil {
+		// 	app.unAuthorizedErrorResponse(w, r, err)
+		// 	return
+		// }
+
+		user, err := app.getUser(ctx, userID)
+
 		if err != nil {
 			app.unAuthorizedErrorResponse(w, r, err)
 			return
 		}
+
 		ctx = context.WithValue(ctx, userCtx, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -89,8 +97,6 @@ func (app *application) BasicAuthMiddleware() func(http.Handler) http.Handler {
 
 			username := app.config.auth.basic.username
 			password := app.config.auth.basic.password
-
-			app.logger.Infow("Basic Auth", "username", username, "password", password)
 
 			creds := strings.SplitN(string(decoded), ":", 2)
 
@@ -146,4 +152,30 @@ func (app *application) checkRolePrecedence(ctx context.Context, user *store.Use
 	}
 
 	return user.Role.Level >= role.Level, nil
+}
+
+func (app *application) getUser(ctx context.Context, userID int64) (*store.User, error) {
+
+	if !app.config.redisCfg.enabled {
+		return app.store.Users.GetByID(ctx, userID)
+	}
+
+	user, err := app.cacheStorage.Users.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		app.logger.Infow("User not found in cache", "userID", userID)
+		user, err := app.store.Users.GetByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if err := app.cacheStorage.Users.Set(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
+	return user, nil
+
 }
