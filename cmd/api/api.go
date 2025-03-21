@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"expvar"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/guddu75/goblog/docs"
 	"github.com/guddu75/goblog/internal/auth"
 	"github.com/guddu75/goblog/internal/mailer"
+	"github.com/guddu75/goblog/internal/ratelimiter"
 	"github.com/guddu75/goblog/internal/store"
 	"github.com/guddu75/goblog/internal/store/cache"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -28,6 +30,7 @@ type application struct {
 	logger       *zap.SugaredLogger
 	mailer       mailer.Client
 	auth         auth.Authenticator
+	rateLimiter  ratelimiter.Limiter
 }
 
 type authConfig struct {
@@ -55,6 +58,7 @@ type config struct {
 	frontendURL string
 	auth        authConfig
 	redisCfg    redisConfig
+	rateLimiter ratelimiter.Config
 }
 
 type redisConfig struct {
@@ -97,6 +101,21 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	// r.Use(cors.Handler(cors.Options{
+	// 	// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+	// 	AllowedOrigins: []string{"https://*", "http://*"},
+	// 	// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+	// 	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	// 	AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+	// 	ExposedHeaders:   []string{"Link"},
+	// 	AllowCredentials: false,
+	// 	MaxAge:           300, // Maximum value not ignored by any of major browsers
+	// }))
+
+	if app.config.rateLimiter.Enabled {
+		r.Use(app.RateLimiterMiddleware)
+	}
+
 	// Set a timeout value on the request context (ctx), that will signal
 	// through ctx.Done() that the request has timed out and further
 	// processing should be stopped.
@@ -105,6 +124,8 @@ func (app *application) mount() http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		// r.With(app.BasicAuthMiddleware()).Get("/health", app.healthCheckHandler)
 		r.Get("/health", app.healthCheckHandler)
+
+		r.With(app.BasicAuthMiddleware()).Get("/debug/vars", expvar.Handler().ServeHTTP)
 
 		docsURL := fmt.Sprintf("%s/swagger/doc.json", app.config.addr)
 

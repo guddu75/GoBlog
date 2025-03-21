@@ -1,6 +1,8 @@
 package main
 
 import (
+	"expvar"
+	"runtime"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -8,6 +10,7 @@ import (
 	"github.com/guddu75/goblog/internal/db"
 	"github.com/guddu75/goblog/internal/env"
 	"github.com/guddu75/goblog/internal/mailer"
+	"github.com/guddu75/goblog/internal/ratelimiter"
 	"github.com/guddu75/goblog/internal/store"
 	"github.com/guddu75/goblog/internal/store/cache"
 	"go.uber.org/zap"
@@ -76,6 +79,11 @@ func main() {
 				iss:    "GoBlog",
 			},
 		},
+		rateLimiter: ratelimiter.Config{
+			RequestsPerTimeFrame: env.GetInt("RATE_LIMITER_REQUESTS_PER_TIME_FRAME", 20),
+			TimeFrame:            time.Second * 5,
+			Enabled:              env.GetBool("RATE_LIMITER_ENABLED", true),
+		},
 	}
 
 	// Logger
@@ -116,6 +124,11 @@ func main() {
 	store := store.NewStorage(db)
 	cacheStorage := cache.NewRedisStorage(rdb)
 
+	rateLimiter := ratelimiter.NewFixedWindowLimiter(
+		cfg.rateLimiter.RequestsPerTimeFrame,
+		cfg.rateLimiter.TimeFrame,
+	)
+
 	mailer, err := mailer.NewMailTrapClient(cfg.mail.mailTrap.host,
 		cfg.mail.mailTrap.userName, cfg.mail.mailTrap.apiKey, cfg.mail.fromEmail, cfg.mail.mailTrap.port)
 
@@ -132,7 +145,16 @@ func main() {
 		logger:       logger,
 		mailer:       &mailer,
 		auth:         jwtAuthenticator,
+		rateLimiter:  rateLimiter,
 	}
+
+	expvar.NewString("version").Set(version)
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
 
 	mux := app.mount()
 
