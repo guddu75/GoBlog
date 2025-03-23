@@ -25,7 +25,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("Unauthorized request"))
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("unauthorized request"))
 			return
 		}
 
@@ -77,7 +77,7 @@ func (app *application) BasicAuthMiddleware() func(http.Handler) http.Handler {
 			authHeader := r.Header.Get("Authorization")
 
 			if authHeader == "" {
-				app.unAuthorizedBasicErrorResponse(w, r, fmt.Errorf("Unauthorized request"))
+				app.unAuthorizedBasicErrorResponse(w, r, fmt.Errorf("unauthorized request"))
 				return
 			}
 
