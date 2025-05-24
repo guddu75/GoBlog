@@ -12,7 +12,7 @@ func New(addr string, maxOpenConns, maxIdleConns int, maxIdleTime string) (*sql.
 	if err != nil {
 		return nil, err
 	}
-
+	// null commit
 	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(maxIdleConns)
 
