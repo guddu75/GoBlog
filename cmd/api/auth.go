@@ -38,14 +38,15 @@ type UserWithToken struct {
 //	@Router			/authentication/user [post]
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 
-	// app.logger.Infow("Inside registerUserHandler", "method", r.Method, "path", r.URL.Path)
-
 	var payload RegisterUserPayload
 
 	if err := readJSON(w, r, &payload); err != nil {
 		app.badRequestError(w, r, err)
 		return
 	}
+
+	app.logger.Infow("Inside registerUserHandler", "method", r.Method, "path", r.URL.Path, "payload", payload)
+	// validate the payload
 
 	if err := Validate.Struct(payload); err != nil {
 		app.badRequestError(w, r, err)
