@@ -1,7 +1,6 @@
 import './App.css'
 import Landing from './components/Landing';
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/v1"
 
 function App() {
   return (

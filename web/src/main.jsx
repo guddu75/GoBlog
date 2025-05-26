@@ -7,6 +7,7 @@ import { ConfirmationPage } from './ConfirmationPage.jsx'
 import Login from './components/Login.jsx'
 import SignUp from './components/Signup.jsx'
 import BlogFeed from './components/BlogFeed.jsx'
+import CreatePost from './components/CreatePost.jsx'
 
 
 const router = createBrowserRouter([
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
     path: "/confirm/:token",
     element: <ConfirmationPage />
   },
+  {
+    path: "/create-post",
+    element: <CreatePost/>
+  }
 ]);
 
 

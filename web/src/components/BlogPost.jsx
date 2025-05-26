@@ -2,8 +2,8 @@ import React from 'react';
 
 const BlogPost = ({ title, author, date, content, imageUrl, imageAlt }) => {
 
-    content = content.substr(200)+"..." || "No content available"; 
-    console.log(content);// Fallback for content if not provided
+    // content = content.substr(200)+"..." || "No content available"; 
+    // console.log(content);// Fallback for content if not provided
 
   return (
     // Article container with responsive styling for a blog post card

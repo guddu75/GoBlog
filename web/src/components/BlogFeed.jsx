@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import BlogPost from './BlogPost';
+import Navbar from './NavBar';
 
 
 const BlogFeed = () => {
@@ -81,7 +83,38 @@ const BlogFeed = () => {
     },
   ];
 
+
+
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const redirect = useNavigate();
+
+  useEffect(() => {
+      const checkLoginStatus = () => {
+        const token = localStorage.getItem('token');
+        setIsLoggedIn(!!token); 
+      };
+  
+      // Initial check
+      checkLoginStatus();
+  
+      // Listen for changes in localStorage (e.g., from other tabs/windows)
+      window.addEventListener('storage', checkLoginStatus);
+  
+      // Cleanup listener on component unmount
+      return () => {
+        window.removeEventListener('storage', checkLoginStatus);
+      };
+    }, []);
+
+
+  if(!isLoggedIn) {
+    redirect('/'); // Redirect to login page if not logged in
+    return null; // Prevent rendering the component
+  }
+
   return (
+    <>
+      <Navbar />
     <div className="container mx-auto p-4 md:p-8">
       <h2 className="text-4xl md:text-5xl font-extrabold text-green-800 text-center mb-10">
         Latest Blog Posts
@@ -100,6 +133,7 @@ const BlogFeed = () => {
         ))}
       </div>
     </div>
+    </>
   );
 };
 

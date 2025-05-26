@@ -19,10 +19,12 @@ const Login = () => {
 
     axios.post(`${API_URL}/authentication/token`, userData)
       .then(response => {
-        console.log('Login successful:', response.data);
+        // console.log('Login successful:', response.data);
         // Handle successful login, e.g., redirect to feed or store token
-        alert('Login successful!');
+        const token = response.data.data;
+        localStorage.setItem('token', token); // Store token in localStorage
         redirect('/feed');
+        console.log(response.data.data);
       })
       .catch(error => {
         console.error('Error during login:', error);
