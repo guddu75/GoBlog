@@ -48,6 +48,8 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 
 		userID, err := strconv.ParseInt(fmt.Sprintf("%.f", claims["sub"]), 10, 64)
 
+		fmt.Println("Printing userID here", userID)
+
 		if err != nil {
 			app.unAuthorizedErrorResponse(w, r, err)
 			return
@@ -167,7 +169,7 @@ func (app *application) getUser(ctx context.Context, userID int64) (*store.User,
 
 	if user == nil {
 		app.logger.Infow("User not found in cache", "userID", userID)
-		user, err := app.store.Users.GetByID(ctx, userID)
+		user, err = app.store.Users.GetByID(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
