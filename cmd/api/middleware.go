@@ -28,7 +28,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("Header is missing"))
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("header is missing"))
 			return
 		}
 		parts := strings.Split(authHeader, " ")
