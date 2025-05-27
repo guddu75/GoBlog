@@ -43,7 +43,7 @@ func (app *application) unAuthorizedErrorResponse(w http.ResponseWriter, r *http
 
 	app.logger.Warnf("Unauthorized request error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
 
-	writeJSONError(w, http.StatusUnauthorized, "UnAuthorized request")
+	writeJSONError(w, http.StatusUnauthorized, "UnAuthorized request "+err.Error())
 }
 
 func (app *application) unAuthorizedBasicErrorResponse(w http.ResponseWriter, r *http.Request, err error) {

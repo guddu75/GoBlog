@@ -23,9 +23,12 @@ import (
 
 func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("Inside AuthTokenMiddleware")
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("unauthorized request"))
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("Header is missing"))
 			return
 		}
 
@@ -40,7 +43,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 
 		jwtToken, err := app.auth.ValidateToken(token)
 		if err != nil {
-			app.unAuthorizedErrorResponse(w, r, err)
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("invalid token: %v", err))
 			return
 		}
 
@@ -51,7 +54,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 		fmt.Println("Printing userID here", userID)
 
 		if err != nil {
-			app.unAuthorizedErrorResponse(w, r, err)
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("invalid user ID in token: %v", err))
 			return
 		}
 		ctx := r.Context()
@@ -64,7 +67,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 		user, err := app.getUser(ctx, userID)
 
 		if err != nil {
-			app.unAuthorizedErrorResponse(w, r, err)
+			app.unAuthorizedErrorResponse(w, r, fmt.Errorf("failed to get user: %v", err))
 			return
 		}
 
